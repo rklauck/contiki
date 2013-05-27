@@ -1343,11 +1343,13 @@ PROCESS_THREAD(resolv_process, ev, data)
   PROCESS_BEGIN();
 
   memset(names, 0, sizeof(names));
-#if RESOLV_CONF_SUPPORTS_MDNS && RESOLV_CONF_SUPPORTS_DNS_SD
+#if RESOLV_CONF_SUPPORTS_MDNS
+#if RESOLV_CONF_SUPPORTS_DNS_SD
   memset(services, 0, sizeof(services));
   static uint8_t i;
   struct servicemap *serviceptr;
-#endif
+#endif /* RESOLV_CONF_SUPPORTS_DNS_SD */
+#endif /* RESOLV_CONF_SUPPORTS_MDNS */
 
   resolv_event_found = process_alloc_event();
 
