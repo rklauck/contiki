@@ -1340,14 +1340,15 @@ PROCESS_THREAD(mdns_probe_process, ev, data)
  */
 PROCESS_THREAD(resolv_process, ev, data)
 {
+  static uint8_t i;
+  struct servicemap *serviceptr;
+
   PROCESS_BEGIN();
 
   memset(names, 0, sizeof(names));
 #if RESOLV_CONF_SUPPORTS_MDNS
 #if RESOLV_CONF_SUPPORTS_DNS_SD
   memset(services, 0, sizeof(services));
-  static uint8_t i;
-  struct servicemap *serviceptr;
 #endif /* RESOLV_CONF_SUPPORTS_DNS_SD */
 #endif /* RESOLV_CONF_SUPPORTS_MDNS */
 
