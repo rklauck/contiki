@@ -1,0 +1,28 @@
+513	ID:2	Rime started with address 0.18.116.2.0.2.2.2
+524	ID:2	MAC 00:12:74:02:00:02:02:02 Contiki-2.6-574-g95224c8 started. Node id is set to 2.
+532	ID:2	CSMA ContikiMAC, channel check rate 8 Hz, radio channel 26
+548	ID:2	Tentative link-local IPv6 address fe80:0000:0000:0000:0212:7402:0002:0202
+552	ID:2	Starting 'XMPP external' 'Chatty Things - XMPP 4 IoT'
+560	ID:2	>IP: aaaa:0000:0000:0000:0000:0000:0000:0001 
+561	ID:2	>Connected 
+661	ID:1	Rime started with address 0.18.116.1.0.1.1.1
+672	ID:1	MAC 00:12:74:01:00:01:01:01 Contiki-2.6-574-g95224c8 started. Node id is set to 1.
+681	ID:1	CSMA ContikiMAC, channel check rate 8 Hz, radio channel 26
+697	ID:1	Tentative link-local IPv6 address fe80:0000:0000:0000:0212:7401:0001:0101
+701	ID:1	Starting 'Border router process' 'Web server'
+717	ID:1	?PGot configuration message of type P
+720	ID:1	Setting prefix aaaa::
+1701	ID:1	Server IPv6 addresses:
+1708	ID:1	 aaaa::212:7401:1:101
+1714	ID:1	 fe80::212:7401:1:101
+13572	ID:1	`?tg`00slip-bridge: Destination off-link but no route src=aaaa::1 dst=aaaa::212:7402:2:202
+14402	ID:1	slip-bridge: Destination off-link but no route src=aaaa::1 dst=aaaa::212:7402:2:202
+16035	ID:2	SEND STREAM 
+16787	ID:2	RECEIVE STREAM 
+19293	ID:1	`D?tgHeSP0P<?xml version='1.0'?> <stream:stream to='localho`D?tg1HeSP0Jst' xmlns='jabber:client' xmlns:stream='http://e`<?tgaHeSP0therx.jabber.org/streams' version='1.0'>`?tgHeP0y`?tgHeP0I`?tgHeP0`?tgHfP0`?tgHfCP0`?tgHfsP0`?tgHfP0Y`?tgHfP0)`?tgHgP0`D?tgHg
+19658	ID:1	P0<auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl' m`@?tgHg
+20036	ID:2	SEND STREAM 
+24668	ID:2	RECEIVE STREAM 
+26427	ID:1	# [1024 bytes binary data]
+31545	ID:1	# [1024 bytes binary data]
+31671	ID:2	EVENT AUTH DONE
