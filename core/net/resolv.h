@@ -46,7 +46,7 @@
  * for services in the local TLD will use DNS-SD.
  */
 #ifndef RESOLV_CONF_SUPPORTS_DNS_SD
-#define RESOLV_CONF_SUPPORTS_DNS_SD   (0)
+#define RESOLV_CONF_SUPPORTS_DNS_SD   (1)
 #endif
 
 /** If RESOLV_CONF_SUPPORTS_MDNS is set, then queries

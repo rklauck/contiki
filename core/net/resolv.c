@@ -119,7 +119,7 @@ strcasecmp(const char *s1, const char *s2)
  * for services in the local TLD will use DNS-SD.
  */
 #ifndef RESOLV_CONF_SUPPORTS_DNS_SD
-#define RESOLV_CONF_SUPPORTS_DNS_SD 0
+#define RESOLV_CONF_SUPPORTS_DNS_SD 1
 #endif
 
 /* If RESOLV_CONF_SUPPORTS_MDNS is set, then queries
@@ -1340,17 +1340,17 @@ PROCESS_THREAD(mdns_probe_process, ev, data)
  */
 PROCESS_THREAD(resolv_process, ev, data)
 {
-  static uint8_t i;
+#if RESOLV_CONF_SUPPORTS_MDNS && RESOLV_CONF_SUPPORTS_DNS_SD
+  static uint8_t i = 0;
   struct servicemap *serviceptr;
+#endif
 
   PROCESS_BEGIN();
 
   memset(names, 0, sizeof(names));
-#if RESOLV_CONF_SUPPORTS_MDNS
-#if RESOLV_CONF_SUPPORTS_DNS_SD
+#if RESOLV_CONF_SUPPORTS_MDNS && RESOLV_CONF_SUPPORTS_DNS_SD
   memset(services, 0, sizeof(services));
-#endif /* RESOLV_CONF_SUPPORTS_DNS_SD */
-#endif /* RESOLV_CONF_SUPPORTS_MDNS */
+#endif
 
   resolv_event_found = process_alloc_event();
 
