@@ -119,7 +119,7 @@ strcasecmp(const char *s1, const char *s2)
  * for services in the local TLD will use DNS-SD.
  */
 #ifndef RESOLV_CONF_SUPPORTS_DNS_SD
-#define RESOLV_CONF_SUPPORTS_DNS_SD 1
+#define RESOLV_CONF_SUPPORTS_DNS_SD 0
 #endif
 
 /* If RESOLV_CONF_SUPPORTS_MDNS is set, then queries
