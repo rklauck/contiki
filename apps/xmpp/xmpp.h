@@ -60,6 +60,11 @@ CCIF extern process_event_t xmpp_auth_done;
 CCIF extern process_event_t xmpp_joinmuc_done;
 #endif /* XMPP_MUC */
 
+#if !XMPP_TEST
+CCIF extern process_event_t xmpp_msg_received_or_send; // send: data == NULL
+CCIF extern process_event_t xmpp_presence_received;
+#endif
+
 PROCESS_NAME(xmpp_process);
 
 #endif

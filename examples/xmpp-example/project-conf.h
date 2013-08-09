@@ -41,17 +41,40 @@
 #ifndef PROJECT_CONF_H_
 #define PROJECT_CONF_H_
 
-#define XMPP_DEBUG              0
-/* A minimalistic set to run XMPP */
-#define XMPP_MIN                0
-/* Check if received XMPP messages are formated correctly (advanced parsing) */
-#define XMPP_COMPAT_CHECK       0
+/* Free some code and RAM space */
+#undef UIP_CONF_DS6_NBR_NBU
+#define UIP_CONF_DS6_NBR_NBU     8
+#undef UIP_CONF_MAX_ROUTES
+#define UIP_CONF_MAX_ROUTES      8
+#undef UIP_CONF_MAX_CONNECTIONS
+#define UIP_CONF_MAX_CONNECTIONS 1
+#undef UIP_CONF_MAX_LISTENPORTS
+#define UIP_CONF_MAX_LISTENPORTS 1
+#undef UIP_CONF_UDP_CONNS
+#define UIP_CONF_UDP_CONNS       1
+/* NOTE: also replace in platform/X/contiki-conf.h */
+#undef NETSTACK_CONF_MAC
+#undef NETSTACK_CONF_RDC
+#define NETSTACK_CONF_MAC        nullmac_driver //csma_driver
+#define NETSTACK_CONF_RDC        nullrdc_driver //contikimac_driver
+/* TODO remove cfs-coffee.h from platform/X/Makefile.common */
+
+/* uXMPP config */
+#define XMPP_DEBUG               0
+/* A minimalistic set to boot XMPP */
+#define XMPP_MIN                 0
 /* MUC (XEP-0045) */
-#define XMPP_MUC                1
+#define XMPP_MUC                 1
+/* Check if received XMPP messages are formated correctly (advanced parsing) */
+#define XMPP_COMPAT_CHECK        0
 /* anonymous login - if disabled nodes will login with user=node_xmpp and pw=paul */
-#define XMPP_LOGIN_ANON         1
+#define XMPP_LOGIN_ANON          0
 /* COOJA sim options */
-#define COOJA_SIM               0
-#define CONF_6TUNNEL            0
+#define COOJA_SIM                1
+/* #root: 6tunnel -46 5223 localhost 5222 */
+#define CONF_6TUNNEL             0
+
+/* Sets client in testing mode */
+#define XMPP_TEST                0
 
 #endif /* PROJECT_CONF_H_ */

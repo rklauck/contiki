@@ -103,6 +103,10 @@ process_event_t xmpp_auth_done;
 #if XMPP_MUC
 process_event_t xmpp_joinmuc_done;
 #endif
+#if !XMPP_TEST
+process_event_t xmpp_msg_received_or_send;
+process_event_t xmpp_presence_received;
+#endif
 #endif /* XMPP_MIN */
 
 #define XMPP_SEND_STRING(s,str) PSOCK_SEND(s,(uint8_t *)str,(unsigned char)strlen(str))
@@ -145,13 +149,24 @@ xmpp_connection_init(struct xmpp_connection_state *s,char* server,char* JID,uip_
 void
 xmpp_receive_msg(struct xmpp_connection_state *s,char* msg)
 {
-  printf(">Receive message from %s : %s \n",((struct xmpp_connection_state *)s)->from,msg);
+  //printf(">Receive message from %s : %s \n",((struct xmpp_connection_state *)s)->from,msg);
+
+#if XMPP_TEST
+#if XMPP_MUC
+  xmpp_send_muc_msg("24CC", "'temp@conference.localhost'");
+#else // MUC
+  xmpp_send_msg(msg,"'123@localhost'");
+#endif // MUC
+#endif // TEST
 }
 
 void
 xmpp_receive_presence(struct xmpp_connection_state *s,char* msg)
 {
-  printf(">Receive presence from %s : %s \n",((struct xmpp_connection_state *)s)->from,msg);
+  //printf(">Receive presence from %s : %s \n",((struct xmpp_connection_state *)s)->from,msg);
+#if XMPP_TEST
+  xmpp_send_presence(xmpp_presence_available);
+#endif // TEST
 }
 #endif
 #endif /* XMPP_MIN */
@@ -210,7 +225,7 @@ xmpp_parse_stream(struct xmpp_connection_state *s)
   }
   if((stream_open == 1) && (id == 1) && (from == 1) && (xmlns == 1) && (version == 1) && (xmlns_stream == 1)) {
 #if XMPP_DEBUG
-    printf("stream parser ok");
+    //printf("stream parser ok");
 #endif
   } else {
     s->command = COMMAND_QUIT;
@@ -231,6 +246,9 @@ xmpp_parse_stanza_header(struct xmpp_connection_state *s)
   uint8_t to;
   uint8_t from;
 #endif /* XMPP_COMPAT_CHECK */
+
+  if(s->from != NULL) free(s->from);
+
   while(j<strlen(s->inputbuf)) {
     if(strncmp(&c[j],"from=",5) == 0) {
       i = j + 5 + 1;
@@ -241,8 +259,10 @@ xmpp_parse_stanza_header(struct xmpp_connection_state *s)
         i++;
       }
       s->from = malloc((size_alloc + 1)*sizeof(char));
-      memcpy(s->from,&c[j + 5 + 1],size_alloc);
-      s->from[size_alloc] = '\0';
+      if(s->from != NULL) {
+        memcpy(s->from,&c[j + 5 + 1],size_alloc);
+        s->from[size_alloc] = '\0';
+      }
 #if XMPP_COMPAT_CHECK
       from = 1;
     }
@@ -611,53 +631,67 @@ PT_THREAD(PT_xmpp_handle_input_stanza(struct xmpp_connection_state *s))
   if(strncmp(s->inputbuf,"<message ",9) == 0) {
     PSOCK_READTO(&s->s,CLOSEBALISE);
     xmpp_parse_stanza_header(s);
-    while(strncmp(s->inputbuf,"</message>",10) != 0){
+    while(strncmp(s->inputbuf,"</message>",10) != 0) {
       if(strncmp(s->inputbuf,"<body>",6) == 0) {
         PSOCK_READTO(&s->s,OPENBALISE);
-        ptr = malloc(PSOCK_DATALEN(&s->s)-1);
-        memcpy(ptr,s->inputbuf,PSOCK_DATALEN(&s->s)-1);
-        ptr[PSOCK_DATALEN(&s->s) - 1] = '\0';
-        PSOCK_READTO(&s->s,CLOSEBALISE);
-#if XMPP_DEBUG
-        if(strncmp(s->inputbuf,"/body>",6) == 0) {
-          printf("new message received");
-          xmpp_receive_msg(s,ptr);
+        ptr = malloc(PSOCK_DATALEN(&s->s) - 1);
+        if(ptr != NULL) {
+          memcpy(ptr,s->inputbuf,PSOCK_DATALEN(&s->s) - 1);
+          ptr[PSOCK_DATALEN(&s->s) - 1] = '\0';
         }
+        PSOCK_READTO(&s->s,CLOSEBALISE);
+        if(strncmp(s->inputbuf,"/body>",6) == 0) {
+#if XMPP_TEST
+#if XMPP_DEBUG
+          xmpp_receive_msg(s,ptr);
+#endif // DEBUG
+#else
+          process_post(PROCESS_BROADCAST, xmpp_msg_received_or_send, ptr);
 #endif
-        free(ptr);
+        }
+        if(ptr != NULL) free(ptr);
       }
       PSOCK_READTO(&s->s,CLOSEBALISE);
     }
-    free(s->from);
+    //free(s->from);
   }
+
   if(strncmp(s->inputbuf,"<presence",9) == 0) {
     PSOCK_READTO(&s->s,CLOSEBALISE);
     xmpp_parse_stanza_header(s);
-    while(strncmp(s->inputbuf,"</presence>",11) != 0){
+    while(strncmp(s->inputbuf,"</presence>",11) != 0) {
       if(strncmp(s->inputbuf,"<show>",6) == 0) {
         PSOCK_READTO(&s->s,OPENBALISE);
-        ptr = malloc(PSOCK_DATALEN(&s->s)-1);
-        memcpy(ptr,s->inputbuf,PSOCK_DATALEN(&s->s)-1);
-        ptr[PSOCK_DATALEN(&s->s) - 1] = '\0';
-        PSOCK_READTO(&s->s,CLOSEBALISE);
-#if XMPP_DEBUG
-        if(strncmp(s->inputbuf,"/show>",6) == 0) {
-          printf("new presence received");
-          xmpp_receive_presence(s,ptr);
+        if(ptr != NULL) {
+          ptr = malloc(PSOCK_DATALEN(&s->s) - 1);
+          memcpy(ptr,s->inputbuf,PSOCK_DATALEN(&s->s) - 1);
+          ptr[PSOCK_DATALEN(&s->s) - 1] = '\0';
         }
-#endif
-        free(ptr);  
-      }
+        PSOCK_READTO(&s->s,CLOSEBALISE);
+        if(strncmp(s->inputbuf,"/show>",6) == 0) {
+#if XMPP_TEST
 #if XMPP_DEBUG
-      if(strncmp(s->inputbuf,"<show />",8) == 0) { // avil
-        ptr = "available";
-        printf("new presence received");
-        xmpp_receive_presence(s,ptr);
-      }
+          xmpp_receive_presence(s,ptr);
+#endif // DEBUG
+#else
+          process_post(PROCESS_BROADCAST, xmpp_presence_received, ptr);
 #endif
+        }
+        if(ptr != NULL) free(ptr);
+      }
+
+      if(strncmp(s->inputbuf,"<show />",8) == 0) { // avail
+#if XMPP_TEST
+#if XMPP_DEBUG
+        xmpp_receive_presence(s,ptr);
+#endif // DEBUG
+#else
+        process_post(PROCESS_BROADCAST, xmpp_presence_received, ptr);
+#endif
+      }
       PSOCK_READTO(&s->s,CLOSEBALISE);
     }
-    free(s->from);
+    //free(s->from);
   }
   PSOCK_END(&s->s);
 }
@@ -725,6 +759,9 @@ PT_THREAD(PT_xmpp_handle_connection(struct xmpp_connection_state *s))
     else if(s->command == COMMAND_SENDMSG) {
       PT_WAIT_THREAD(&s->pt,PT_xmpp_send_msg(s));
       s->command = COMMAND_NONE;
+#if !XMPP_TEST
+      process_post(PROCESS_BROADCAST, xmpp_msg_received_or_send, NULL);
+#endif // TEST
     }
 #if !COOJA_SIM
     else if(s->command == COMMAND_QUIT) {
