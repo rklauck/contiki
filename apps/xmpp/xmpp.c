@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Brandenburg University of Technology - Computer
+ * Copyright (c) 2015, Brandenburg University of Technology - Computer
  * Networks and Communication Systems Group
  * All rights reserved.
  *

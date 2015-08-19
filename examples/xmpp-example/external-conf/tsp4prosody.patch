@@ -1,0 +1,373 @@
+diff -upr prosody-0.8.2_stock/core/rostermanager.lua prosody-0.8.2_TSP/core/rostermanager.lua
+--- prosody-0.8.2_stock/core/rostermanager.lua	2011-06-12 23:21:39.000000000 +0200
++++ prosody-0.8.2_TSP/core/rostermanager.lua	2012-02-27 16:24:58.000000000 +0100
+@@ -55,6 +55,32 @@ function remove_from_roster(session, jid
+ 	end
+ end
+ 
++-- NEW
++function external_add_to_roster(username, host, jid, item)
++	local roster = load_roster(username, host);
++	local old_item = roster[jid];
++	roster[jid] = item;
++	if save_roster(username, host, roster) then
++		return true;
++	else
++		roster[jid] = old_item;
++		return nil, "wait", "internal-server-error", "Unable to save roster";
++	end
++end
++
++function external_remove_from_roster(username, host, jid)
++	local roster = load_roster(username, host);
++	local old_item = roster[jid];
++	roster[jid] = nil;
++	if save_roster(username, host, roster) then
++		return true;
++	else
++		roster[jid] = old_item;
++		return nil, "wait", "internal-server-error", "Unable to save roster";
++	end
++end
++-- NEW end
++
+ function roster_push(username, host, jid)
+ 	local roster = jid and jid ~= "pending" and hosts[host] and hosts[host].sessions[username] and hosts[host].sessions[username].roster;
+ 	if roster then
+
+diff -upr prosody-0.8.2_stock/plugins/mod_presence.lua prosody-0.8.2_TSP/plugins/mod_presence.lua
+--- prosody-0.8.2_stock/plugins/mod_presence.lua	2011-06-12 23:21:40.000000000 +0200
++++ prosody-0.8.2_TSP/plugins/mod_presence.lua	2015-08-18 18:10:00.878325447 +0200
+@@ -269,7 +269,14 @@ local outbound_presence_handler = functi
+ 	local to = stanza.attr.to;
+ 	if to then
+ 		local t = stanza.attr.type;
+-		if t ~= nil and t ~= "unavailable" and t ~= "error" then -- check for subscriptions and probes
++-- NEW
++		local s = 0;
++		if (stanza:get_child("status")) then
++			log("debug", "-- NEW %s status", stanza:get_child("status"):get_text());
++			s = stanza:get_child("status"):get_text();
++		end
++		if t ~= nil and t ~= "unavailable" and t ~= "error" and t ~= "tsp" and s ~= "TSP" then -- check for subscriptions and probes
++-- NEW end
+ 			return handle_outbound_presence_subscriptions_and_probes(origin, stanza, jid_bare(stanza.attr.from), jid_bare(stanza.attr.to));
+ 		end
+ 
+@@ -297,7 +304,14 @@ module:hook("presence/bare", function(da
+ 	local to = stanza.attr.to;
+ 	local t = stanza.attr.type;
+ 	if to then
+-		if t ~= nil and t ~= "unavailable" and t ~= "error" then -- check for subscriptions and probes sent to bare JID
++-- NEW
++		local s = 0;
++		if (stanza:get_child("status")) then
++			log("debug", "-- NEW %s status", stanza:get_child("status"):get_text());
++			s = stanza:get_child("status"):get_text();
++		end
++		if t ~= nil and t ~= "unavailable" and t ~= "error" and t ~= "tsp" and s ~= "TSP" then -- check for subscriptions and probes sent to bare JID
++-- NEW end
+ 			return handle_inbound_presence_subscriptions_and_probes(origin, stanza, jid_bare(stanza.attr.from), jid_bare(stanza.attr.to));
+ 		end
+ 	
+@@ -321,7 +335,14 @@ module:hook("presence/full", function(da
+ 	local origin, stanza = data.origin, data.stanza;
+ 
+ 	local t = stanza.attr.type;
+-	if t ~= nil and t ~= "unavailable" and t ~= "error" then -- check for subscriptions and probes sent to full JID
++-- NEW
++	local s = 0;
++	if (stanza:get_child("status")) then
++		log("debug", "-- NEW %s status", stanza:get_child("status"):get_text());
++		s = stanza:get_child("status"):get_text();
++	end
++	if t ~= nil and t ~= "unavailable" and t ~= "error" and t ~= "tsp" and s ~= "TSP" then -- check for subscriptions and probes sent to full JID
++-- NEW end
+ 		return handle_inbound_presence_subscriptions_and_probes(origin, stanza, jid_bare(stanza.attr.from), jid_bare(stanza.attr.to));
+ 	end
+ 
+diff -upr prosody-0.8.2_stock/plugins/muc/muc.lib.lua prosody-0.8.2_TSP/plugins/muc/muc.lib.lua
+--- prosody-0.8.2_stock/plugins/muc/muc.lib.lua	2011-06-12 23:21:40.000000000 +0200
++++ prosody-0.8.2_TSP/plugins/muc/muc.lib.lua	2015-08-18 17:27:18.515671428 +0200
+@@ -105,6 +105,9 @@ end
+ function room_mt:broadcast_presence(stanza, sid, code, nick)
+ 	stanza = get_filtered_presence(stanza);
+ 	local occupant = self._occupants[stanza.attr.from];
++
++	--self:public_broadcast_except_nick(stanza, stanza.attr.from, sid);
++
+ 	stanza:tag("x", {xmlns='http://jabber.org/protocol/muc#user'})
+ 		:tag("item", {affiliation=occupant.affiliation or "none", role=occupant.role or "none", nick=nick}):up();
+ 	if code then
+@@ -122,8 +125,13 @@ function room_mt:broadcast_message(stanz
+ 	local to = stanza.attr.to;
+ 	for occupant, o_data in pairs(self._occupants) do
+ 		for jid in pairs(o_data.sessions) do
+-			stanza.attr.to = jid;
+-			self:_route_stanza(stanza);
++-- NEW
++			log("debug", "BROADCAST_MSG JID %s tsp %s", jid, o_data.tsp[jid]);
++			if o_data.tsp[jid] ~= "yes" then
++				stanza.attr.to = jid;
++				self:_route_stanza(stanza);
++			end
++-- NEW end
+ 		end
+ 	end
+ 	stanza.attr.to = to;
+@@ -145,12 +153,95 @@ function room_mt:broadcast_except_nick(s
+ 	for rnick, occupant in pairs(self._occupants) do
+ 		if rnick ~= nick then
+ 			for jid in pairs(occupant.sessions) do
+-				stanza.attr.to = jid;
+-				self:_route_stanza(stanza);
++-- NEW
++				log("debug", "BROADCAST_EXEPT_NICK JID %s tsp %s", jid, occupant.tsp[jid]);
++				if occupant.tsp[jid] ~= "yes" then
++					stanza.attr.to = jid;
++					self:_route_stanza(stanza);
++				end
++-- NEW end
+ 			end
+ 		end
+ 	end
+ end
++-- NEW
++function room_mt:public_broadcast_except_nick(stanza, nick, jid, is_leaving)
++	local rostermanager = require "core.rostermanager";
++
++	local my_tsp = self._occupants[nick].tsp[jid];
++	log("debug", "PUBLIC_BROADCAST my tsp %s", my_tsp);
++
++	local node, host = jid_split(jid);
++	local to_node, to_host;
++	-- TODO if host ~= to_host then return false; end -- Limit this feature only domain-wide? test with module.host
++	--local nick = stanza.attr.from;
++	local room_node, room_host = jid_split(nick);
++	stanza.attr.from = jid;
++
++	for rnick, occupant in pairs(self._occupants) do
++		if rnick ~= nick then
++			for to_jid in pairs(occupant.sessions) do
++				log("debug", "PUBLIC_BROADCAST JID %s tsp %s", to_jid, occupant.tsp[to_jid]);
++				if (my_tsp == "yes" and occupant.tsp[to_jid] ~= "yes") then
++					-- remote/sensor will add itself as buddy to users roster - sensor is before user in chatroom
++					to_node, to_host = jid_split(to_jid);
++					if is_leaving then
++						log("debug", "PUBLIC_BROADCAST_LEAVE to: %s, host: %s for jid: %s", to_node, to_host, jid_prep(jid));
++						log("debug", "PUBLIC_BROADCAST_LEAVE nick: %s, room: %s", nick, room_node);
++						if rostermanager.external_remove_from_roster(to_node, to_host, jid_bare(jid)) then
++							rostermanager.roster_push(to_node, to_host, jid_bare(jid));
++							rostermanager.external_remove_from_roster(node, host, jid_bare(to_jid));
++						end
++					else -- presence
++						log("debug", "PUBLIC_BROADCAST to: %s, host: %s for jid: %s", to_node, to_host, jid_prep(jid));
++						log("debug", "PUBLIC_BROADCAST nick: %s, room: %s", nick, room_node);
++						local r_item = {name = nil, groups = {}};
++						r_item.subscription = "both";
++						r_item.groups[room_node] = true;
++						local success, err_type, err_cond, err_msg = rostermanager.external_add_to_roster(to_node, to_host, jid_bare(jid), r_item);
++						if success then --rostermanager.set_contact_pending_out(to_node, to_host, jid_bare(jid)) then
++							rostermanager.roster_push(to_node, to_host, jid_bare(jid));
++							-- for presence updates, add jid to local roster
++							rostermanager.external_add_to_roster(node, host, jid_bare(to_jid), r_item);
++						end
++						-- send presence stanza
++						stanza.attr.to = to_jid;
++						--log("debug", "BROADCAST_EXEPT_NICK stanza: %s", stanza:top_tag());
++						self:_route_stanza(stanza);
++					end
++				elseif (my_tsp ~= "yes" and occupant.tsp[to_jid] == "yes") then
++					-- local/user will add sensor as buddy to its roster - user joins later than sensor the chatroom
++					to_node, to_host = jid_split(to_jid);
++					if is_leaving then
++						log("debug", "PUBLIC_BROADCAST_LEAVE to: %s, host: %s for jid: %s", node, host, jid_prep(to_jid));
++						log("debug", "PUBLIC_BROADCAST_LEAVE nick: %s, room: %s", nick, room_node);
++						if rostermanager.external_remove_from_roster(node, host, jid_bare(to_jid)) then
++							rostermanager.roster_push(node, host, jid_bare(to_jid));
++							rostermanager.external_remove_from_roster(to_node, to_host, jid_bare(jid));
++						end
++					else -- presence
++						log("debug", "PUBLIC_BROADCAST to: %s, host: %s for jid: %s", node, host, jid_prep(to_jid));
++						log("debug", "PUBLIC_BROADCAST nick: %s, room: %s", nick, room_node);
++						local r_item = {name = nil, groups = {}};
++						r_item.subscription = "both";
++						r_item.groups[room_node] = true;
++						local success, err_type, err_cond, err_msg = rostermanager.external_add_to_roster(node, host, jid_bare(to_jid), r_item);
++						if success then --rostermanager.set_contact_pending_out(to_node, to_host, jid_bare(jid)) then
++							rostermanager.roster_push(node, host, jid_bare(to_jid));
++							-- for presence updates, add jid to local roster
++							rostermanager.external_add_to_roster(to_node, to_host, jid_bare(jid), r_item);
++						end
++						-- directed presence stanza must be send from sensor!!!
++						local pres = st.presence({});
++						pres.attr.to, pres.attr.from = jid, to_jid;
++						self:_route_stanza(pres);
++					end
++				end -- if tsp
++			end
++		end
++	end
++end
++-- NEW end
+ 
+ function room_mt:send_occupant_list(to)
+ 	local current_nick = self._jid_nick[to];
+@@ -378,11 +469,27 @@ function room_mt:handle_to_occupant(orig
+ 				else
+ 					occupant.role = 'none';
+ 					self:broadcast_presence(pr, from);
++-- NEW
++					self:public_broadcast_except_nick(pr, pr.attr.from, from, 1);
++-- NEW end
+ 					self._occupants[current_nick] = nil;
+ 				end
+ 				self._jid_nick[from] = nil;
+ 			end
+-		elseif not type then -- available
++-- NEW
++		elseif (not type or type == "tsp") then -- available
++			--for childnode in stanza:children() do
++			--	log("debug", "-- NEW %s broadcasted presence", childnode:get_text());
++			--end
++			if (stanza:get_child("priority")) then
++				log("debug", "-- NEW %s prio", stanza:get_child("priority"):get_text());
++			end
++			local s = 0;
++			if (stanza:get_child("status")) then
++				log("debug", "-- NEW %s status", stanza:get_child("status"):get_text());
++				s = stanza:get_child("status"):get_text();
++			end
++-- NEW end
+ 			if current_nick then
+ 				--if #pr == #stanza or current_nick ~= to then -- commented because google keeps resending directed presence
+ 					if current_nick == to then -- simple presence
+@@ -452,16 +559,36 @@ function room_mt:handle_to_occupant(orig
+ 					local role = self:get_default_role(affiliation)
+ 					if role then -- new occupant
+ 						if not is_merge then
+-							self._occupants[to] = {affiliation=affiliation, role=role, jid=from, sessions={[from]=get_filtered_presence(stanza)}};
++							self._occupants[to] = {affiliation=affiliation, role=role, jid=from, sessions={[from]=get_filtered_presence(stanza)}, tsp={[from]="no"}};
++-- NEW
++							if (type == "tsp" or s == "TSP") then
++							--if jid_bare(from) == "again@localhost" then
++								self._occupants[to].tsp[from] = "yes";
++							end
++-- NEW end
+ 						else
+ 							self._occupants[to].sessions[from] = get_filtered_presence(stanza);
+ 						end
+ 						self._jid_nick[from] = to;
+ 						self:send_occupant_list(from);
++-- NEW
++						-- check if type="tsp" is forwarded (pidgin debug console)
++						-- if so: remove it / look in destroy for building new presence stanza from scratch!
++						--if type == "tsp" then
++						--	pr = st.presence({}); --st.clone(pr); ?
++						--	pr.attr.to = stanza.attr.to;
++						--end
++-- NEW end
+ 						pr.attr.from = to;
+ 						pr:tag("x", {xmlns='http://jabber.org/protocol/muc#user'})
+ 							:tag("item", {affiliation=affiliation or "none", role=role or "none"}):up();
+ 						if not is_merge then
++-- NEW
++							--if type == "tsp" then
++							--if jid_bare(from) == "again@localhost" then
++							self:public_broadcast_except_nick(get_filtered_presence(stanza), stanza.attr.to, stanza.attr.from);
++							--end
++-- NEW end
+ 							self:broadcast_except_nick(pr, to);
+ 						end
+ 						pr:tag("status", {code='110'}):up();
+@@ -470,7 +597,13 @@ function room_mt:handle_to_occupant(orig
+ 						end
+ 						pr.attr.to = from;
+ 						self:_route_stanza(pr);
+-						self:send_history(from, stanza);
++-- NEW
++						if not type then
++-- NEW end
++							self:send_history(from, stanza);
++-- NEW
++						end
++-- NEW end
+ 					elseif not affiliation then -- registration required for entering members-only room
+ 						local reply = st.error_reply(stanza, "auth", "registration-required"):up();
+ 						reply.tags[1].attr.code = "407";
+Only in prosody-0.8.2_TSP: prosody.bin.old
+Only in prosody-0.8.2_TSP: prosody.cfg.lua~
+diff -upr prosody-0.8.2_stock/prosody.cfg.lua.install prosody-0.8.2_TSP/prosody.cfg.lua.install
+--- prosody-0.8.2_stock/prosody.cfg.lua.install	2015-08-17 14:14:00.656639579 +0200
++++ prosody-0.8.2_TSP/prosody.cfg.lua.install	2012-02-27 16:24:55.000000000 +0100
+@@ -86,8 +86,8 @@ allow_registration = false;
+ -- These are the SSL/TLS-related settings. If you don't want
+ -- to use SSL/TLS, you may comment or remove this
+ ssl = {
+-	key = "/home/rklauck/contiki-2.5-testenv/1/prosody-0.8.2/etc/prosody/certs/localhost.key";
+-	certificate = "/home/rklauck/contiki-2.5-testenv/1/prosody-0.8.2/etc/prosody/certs/localhost.cert";
++	key = "/usr/local/etc/prosody/certs/localhost.key";
++	certificate = "/usr/local/etc/prosody/certs/localhost.cert";
+ }
+ 
+ -- Only allow encrypted streams? Encryption is already used when
+@@ -143,8 +143,8 @@ VirtualHost "example.com"
+ 	-- Note that old-style SSL on port 5223 only supports one certificate, and will always
+ 	-- use the global one.
+ 	ssl = {
+-		key = "/home/rklauck/contiki-2.5-testenv/1/prosody-0.8.2/etc/prosody/certs/example.com.key";
+-		certificate = "/home/rklauck/contiki-2.5-testenv/1/prosody-0.8.2/etc/prosody/certs/example.com.crt";
++		key = "/usr/local/etc/prosody/certs/example.com.key";
++		certificate = "/usr/local/etc/prosody/certs/example.com.crt";
+ 	}
+ 
+ ------ Components ------
+Only in prosody-0.8.2_TSP: prosody.cfg.lua-PLAIN
+diff -upr prosody-0.8.2_stock/prosodyctl.install prosody-0.8.2_TSP/prosodyctl.install
+--- prosody-0.8.2_stock/prosodyctl.install	2015-08-17 14:14:00.648639549 +0200
++++ prosody-0.8.2_TSP/prosodyctl.install	2012-02-27 16:24:55.000000000 +0100
+@@ -11,10 +11,10 @@
+ 
+ -- Will be modified by configure script if run --
+ 
+-CFG_SOURCEDIR='/home/rklauck/contiki-2.5-testenv/1/prosody-0.8.2/lib/prosody';
+-CFG_CONFIGDIR='/home/rklauck/contiki-2.5-testenv/1/prosody-0.8.2/etc/prosody';
+-CFG_PLUGINDIR='/home/rklauck/contiki-2.5-testenv/1/prosody-0.8.2/lib/prosody/modules/';
+-CFG_DATADIR='/home/rklauck/contiki-2.5-testenv/1/prosody-0.8.2/var/lib/prosody';
++CFG_SOURCEDIR='/usr/local/lib/prosody';
++CFG_CONFIGDIR='/usr/local/etc/prosody';
++CFG_PLUGINDIR='/usr/local/lib/prosody/modules/';
++CFG_DATADIR='/usr/local/var/lib/prosody';
+ 
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+ 
+diff -upr prosody-0.8.2_stock/prosody.install prosody-0.8.2_TSP/prosody.install
+--- prosody-0.8.2_stock/prosody.install	2015-08-17 14:14:00.632639380 +0200
++++ prosody-0.8.2_TSP/prosody.install	2012-02-27 16:24:56.000000000 +0100
+@@ -11,10 +11,10 @@
+ 
+ -- Will be modified by configure script if run --
+ 
+-CFG_SOURCEDIR='/home/rklauck/contiki-2.5-testenv/1/prosody-0.8.2/lib/prosody';
+-CFG_CONFIGDIR='/home/rklauck/contiki-2.5-testenv/1/prosody-0.8.2/etc/prosody';
+-CFG_PLUGINDIR='/home/rklauck/contiki-2.5-testenv/1/prosody-0.8.2/lib/prosody/modules/';
+-CFG_DATADIR='/home/rklauck/contiki-2.5-testenv/1/prosody-0.8.2/var/lib/prosody';
++CFG_SOURCEDIR='/usr/local/lib/prosody';
++CFG_CONFIGDIR='/usr/local/etc/prosody';
++CFG_PLUGINDIR='/usr/local/lib/prosody/modules/';
++CFG_DATADIR='/usr/local/var/lib/prosody';
+ 
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+ 
+Only in prosody-0.8.2_TSP: TSP-CHANGELOG
+Binary files prosody-0.8.2_stock/util/encodings.so and prosody-0.8.2_TSP/util/encodings.so differ
+Binary files prosody-0.8.2_stock/util/hashes.so and prosody-0.8.2_TSP/util/hashes.so differ
+Binary files prosody-0.8.2_stock/util/pposix.so and prosody-0.8.2_TSP/util/pposix.so differ
+Only in prosody-0.8.2_TSP/util: sasl.lua~
+Binary files prosody-0.8.2_stock/util/signal.so and prosody-0.8.2_TSP/util/signal.so differ
+Binary files prosody-0.8.2_stock/util-src/encodings.o and prosody-0.8.2_TSP/util-src/encodings.o differ
+Binary files prosody-0.8.2_stock/util-src/encodings.so and prosody-0.8.2_TSP/util-src/encodings.so differ
+Binary files prosody-0.8.2_stock/util-src/hashes.o and prosody-0.8.2_TSP/util-src/hashes.o differ
+Binary files prosody-0.8.2_stock/util-src/hashes.so and prosody-0.8.2_TSP/util-src/hashes.so differ
+Binary files prosody-0.8.2_stock/util-src/pposix.so and prosody-0.8.2_TSP/util-src/pposix.so differ
+Binary files prosody-0.8.2_stock/util-src/signal.so and prosody-0.8.2_TSP/util-src/signal.so differ
